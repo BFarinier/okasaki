@@ -14,6 +14,8 @@ sig
   val tail : 'a rlist -> 'a rlist
 
 	val lookup : 'a rlist -> int -> 'a
+	val update : 'a rlist -> int -> 'a -> 'a rlist
+
 end
 
 
@@ -74,9 +76,8 @@ struct
 		if pos = 0 then x
 		else raise Index
 	| Node (t1, t2) ->
-		let len = len / 2 in
-		if pos < len then lookup_tree t1 pos len
-		else lookup_tree t2 (pos - len) len
+		if pos < len / 2 then lookup_tree t1 pos (len / 2)
+		else lookup_tree t2 (pos - len / 2) (len / 2)
 
 	let rec lookup_list : type a b. (a,b) tlist -> int -> int -> a =
 	fun tl pos len -> match tl with
@@ -89,5 +90,27 @@ struct
 			else lookup_list l (pos - len) (2 * len)
 
 	let lookup rl pos = lookup_list rl pos 1
+
+
+	let rec update_tree : type a b. (a,b) tree -> int -> a -> int -> (a,b) tree =
+	fun t pos y len -> match t with
+	| Leaf x ->
+		if pos = 0 then (Leaf y)
+		else raise Index
+	| Node (t1, t2) ->
+		if pos < len / 2 then Node (update_tree t1 pos y (len / 2), t2)
+		else Node (t1, update_tree t2 (pos - len / 2) y (len / 2))
+
+	let rec update_list : type a b. (a,b) tlist -> int -> a -> int -> (a,b) tlist =
+	fun tl pos y len -> match tl with
+	| Null -> raise Index
+	| Cons (d, l) ->
+		match d with
+		| Zero -> Cons (Zero, update_list l pos y (2 * len))
+		| One t ->
+			if pos < len then Cons (One (update_tree t pos y len), l)
+			else Cons (One t, update_list l (pos - len) y (2 * len))
+
+	let update rl pos y = update_list rl pos y 1
 
 end
