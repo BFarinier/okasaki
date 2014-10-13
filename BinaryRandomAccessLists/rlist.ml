@@ -12,6 +12,8 @@ sig
 	val cons : 'a -> 'a rlist -> 'a rlist
   val head : 'a rlist -> 'a
   val tail : 'a rlist -> 'a rlist
+
+	val lookup : 'a rlist -> int -> 'a
 end
 
 
@@ -32,11 +34,11 @@ struct
 
 	let empty = Null
 
-	let is_empty l = (l = Null)
+	let is_empty rlist = (rlist = Null)
 
 
 	let rec insert_tree : type a  b. (a,b) tree -> (a,b) tlist -> (a,b) tlist =
-	fun x rlist -> match rlist with
+	fun x tl -> match tl with
 	| Null -> Cons (One x, Null)
 	| Cons (d, l) ->
 		match d with
@@ -45,9 +47,10 @@ struct
 			let t = insert_tree (Node (x, t)) l in
 			Cons (Zero, t)
 
-	let cons x l = insert_tree (Leaf x) l
+	let cons x rl = insert_tree (Leaf x) rl
 
-	let rec borrow_tree : type a b. (a,b) tlist -> ((a,b) tree * (a,b) tlist) = function
+	let rec borrow_tree : type a b. (a,b) tlist -> ((a,b) tree * (a,b) tlist) =
+	fun tl -> match tl with
 	| Null -> raise Empty
 	| Cons (d, l) ->
 		match d with
@@ -59,9 +62,32 @@ struct
 			| Null -> (t, Null)
 			| _ -> (t, Cons (Zero, l))
 
-	let head : type a. a rlist -> a = fun l ->
-		let (Leaf l) =  fst (borrow_tree l) in l
+	let head : type a. a rlist -> a = fun rl ->
+		let (Leaf x) =  fst (borrow_tree rl) in x
 
-	let tail l = snd (borrow_tree l)
+	let tail rl = snd (borrow_tree rl)
+
+
+	let rec lookup_tree : type a b. (a,b) tree -> int -> int -> a =
+	fun t pos len -> match t with
+	| Leaf x ->
+		if pos = 0 then x
+		else raise Index
+	| Node (t1, t2) ->
+		let len = len / 2 in
+		if pos < len then lookup_tree t1 pos len
+		else lookup_tree t2 (pos - len) len
+
+	let rec lookup_list : type a b. (a,b) tlist -> int -> int -> a =
+	fun tl pos len -> match tl with
+	| Null -> raise Index
+	| Cons (d, l) ->
+		match d with
+		| Zero -> lookup_list l pos (2 * len)
+		| One t ->
+			if pos < len then lookup_tree t pos len
+			else lookup_list l (pos - len) (2 * len)
+
+	let lookup rl pos = lookup_list rl pos 1
 
 end
