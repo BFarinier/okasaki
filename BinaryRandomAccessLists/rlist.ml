@@ -3,16 +3,20 @@ sig
 
 	type 'a rlist
 
+	exception Empty
+	exception Index
+
 	val empty : 'a rlist
+	val is_empty : 'a rlist -> bool
+
 	val cons : 'a -> 'a rlist -> 'a rlist
   val head : 'a rlist -> 'a
   val tail : 'a rlist -> 'a rlist
 end
 
+
 module RList : S =
 struct
-
-	exception Empty
 
 	type leaf
 	type 'a node = ('a * 'a)
@@ -22,7 +26,14 @@ struct
 	type ('a,'b) tlist = Null | Cons of ('a,'b) digit * ('a,'b node) tlist
 	type 'a rlist = ('a,leaf) tlist
 
+	exception Empty
+	exception Index
+
+
 	let empty = Null
+
+	let is_empty l = (l = Null)
+
 
 	let rec insert_tree : type a  b. (a,b) tree -> (a,b) tlist -> (a,b) tlist =
 	fun x rlist -> match rlist with
