@@ -24,10 +24,14 @@ struct
 
   type leaf
   type 'a node = ('a * 'a)
-  type (_,_) tree = Leaf : 'a -> ('a, leaf) tree | Node : ('a,'b) tree * ('a,'b) tree -> ('a,'b node) tree
+  type (_,_) tree =
+    | Leaf : 'a -> ('a, leaf) tree
+    | Node : ('a,'b) tree * ('a,'b) tree -> ('a,'b node) tree
 
-  type ('a,'b) digit = Zero | One of ('a,'b) tree
-  type ('a,'b) tlist = Null | Cons of ('a,'b) digit * ('a,'b node) tlist
+  type ('a,'b) tlist =
+    | Null
+    | Zero of ('a,'b node) tlist
+    | One of ('a,'b) tree * ('a,'b node) tlist
   type 'a rlist = ('a,leaf) tlist
 
   exception Empty
@@ -41,28 +45,24 @@ struct
 
   let rec insert_tree : type a  b. (a,b) tree -> (a,b) tlist -> (a,b) tlist =
     fun x tl -> match tl with
-      | Null -> Cons (One x, Null)
-      | Cons (d, l) ->
-        match d with
-        | Zero -> Cons (One x, l)
-        | One t ->
-          let t = insert_tree (Node (x, t)) l in
-          Cons (Zero, t)
+      | Null -> One (x, Null)
+      | Zero l -> One (x, l)
+      | One (t, l) ->
+        let t = insert_tree (Node (x, t)) l in
+        Zero t
 
   let cons x rl = insert_tree (Leaf x) rl
 
   let rec borrow_tree : type a b. (a,b) tlist -> ((a,b) tree * (a,b) tlist) =
     fun tl -> match tl with
       | Null -> raise Empty
-      | Cons (d, l) ->
-        match d with
-        | Zero ->
-          let (Node (t1, t2), l) =  borrow_tree l in
-          (t1, Cons (One t2, l))
-        | One t ->
-          match l with
-          | Null -> (t, Null)
-          | _ -> (t, Cons (Zero, l))
+      | Zero l ->
+        let (Node (t1, t2), l) =  borrow_tree l in
+        (t1, One (t2, l))
+      | One (t, l) ->
+        match l with
+        | Null -> (t, Null)
+        | _ -> (t, Zero l)
 
   let head : type a. a rlist -> a = fun rl ->
     let (Leaf x) =  fst (borrow_tree rl) in x
@@ -82,12 +82,10 @@ struct
   let rec lookup_list : type a b. (a,b) tlist -> int -> int -> a =
     fun tl pos len -> match tl with
       | Null -> raise Index
-      | Cons (d, l) ->
-        match d with
-        | Zero -> lookup_list l pos (2 * len)
-        | One t ->
-          if pos < len then lookup_tree t pos len
-          else lookup_list l (pos - len) (2 * len)
+      | Zero l -> lookup_list l pos (2 * len)
+      | One (t, l) ->
+        if pos < len then lookup_tree t pos len
+        else lookup_list l (pos - len) (2 * len)
 
   let lookup rl pos = lookup_list rl pos 1
 
@@ -104,12 +102,10 @@ struct
   let rec update_list : type a b. (a,b) tlist -> int -> a -> int -> (a,b) tlist =
     fun tl pos y len -> match tl with
       | Null -> raise Index
-      | Cons (d, l) ->
-        match d with
-        | Zero -> Cons (Zero, update_list l pos y (2 * len))
-        | One t ->
-          if pos < len then Cons (One (update_tree t pos y len), l)
-          else Cons (One t, update_list l (pos - len) y (2 * len))
+      | Zero l -> Zero (update_list l pos y (2 * len))
+      | One (t, l) ->
+        if pos < len then One (update_tree t pos y len, l)
+        else One (t, update_list l (pos - len) y (2 * len))
 
   let update rl pos y = update_list rl pos y 1
 
